@@ -23,7 +23,7 @@ import mmap
 
 BLACKLIST=['EvmSnapshot']
 
-def copy_image(src_image, src, dest, workdir):
+def copy_image(src_image, src, dest, workdir, dryrun):
     if src_image in BLACKLIST:
         print "Skipping image %s" % (src_image)
         return
@@ -34,6 +34,9 @@ def copy_image(src_image, src, dest, workdir):
     if image is None:
         raise Exception("Couldn't find source image: %s" % (src_image,))
     
+    if dryrun:
+        return
+
     md5 = hashlib.md5()
 
     tmpfile = open("%s/%s.qcow2" % (workdir, src_image), 'wb')
@@ -75,9 +78,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--src')
 parser.add_argument('-d', '--dest')
 parser.add_argument('-w', '--workdir', default='/tmp')
+parser.add_argument('-n', dest='dryrun', action='store_true', default=False)
 args = parser.parse_args()
 
 print "Copying images from %s to %s."%(args.src, args.dest)
+if args.dryrun:
+    print "Dry run"
 
 src = openstack.connect(cloud=args.src)
 dest = openstack.connect(cloud=args.dest)
@@ -87,6 +93,6 @@ dest_images = dest.list_images()
 
 for src_image in [x['name'] for x in src_images]:
     if src_image not in [y['name'] for y in dest_images]:
-        copy_image(src_image, src, dest, args.workdir)
+        copy_image(src_image, src, dest, args.workdir, args.dryrun)
     else:
         print "Image %s exists on destination" %(src_image)
